@@ -43,6 +43,8 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Niveles** que aumentan cada 10 líneas y aceleran la caída.
 - **Menú de pausa** (`P` o `Esc`) con Reanudar, Reiniciar, Ver controles y selector de nivel inicial (1–10, se guarda en `localStorage`); los controles del juego quedan bloqueados mientras está abierto.
 - **Game Over** con opción de reinicio.
+- **Pantalla de inicio** con botón Jugar (o `Enter`).
+- **Tabla de records local**: top 5 puntuaciones con nombre (guardadas en `localStorage`), resaltado de tu puntuación si entra en el top, mejor combo y líneas máximas, y botón para borrar los records.
 
 ---
 
