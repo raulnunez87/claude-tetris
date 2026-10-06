@@ -89,6 +89,30 @@ body {
   letter-spacing: 1px;
 }
 
+.skin-select {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2; /* por encima del overlay para poder cambiar de skin en pausa/game over */
+  background: var(--toggle-bg);
+  border: 1px solid var(--toggle-border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--toggle-text);
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background 0.25s, color 0.25s, border-color 0.25s;
+}
+
+.skin-select:hover,
+.skin-select:focus {
+  border-color: #7aa2f7;
+  color: #7aa2f7;
+  outline: none;
+}
+
 .theme-toggle:hover {
   border-color: #7aa2f7;
   color: #7aa2f7;
@@ -122,6 +146,24 @@ body {
   border-radius: 4px;
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
   transition: background 0.25s, border-color 0.25s;
+}
+
+/* ---- Acentos por skin (conviven con body.light-mode) ---- */
+body.skin-neon #board,
+body.skin-neon #next-canvas {
+  border-color: #00e5ff;
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.55), 0 0 40px rgba(213, 0, 249, 0.25);
+}
+
+body.skin-pastel #board,
+body.skin-pastel #next-canvas {
+  border-radius: 8px;
+}
+
+body.skin-pixel #board,
+body.skin-pixel #next-canvas {
+  border-radius: 0;
+  outline: 2px solid var(--border);
 }
 
 /* ---- Panel lateral ---- */

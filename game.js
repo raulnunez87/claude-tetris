@@ -162,16 +162,168 @@ function updateHUD() {
   levelEl.textContent = level;
 }
 
-function drawBlock(context, x, y, colorIndex, size, alpha) {
-  if (!colorIndex) return;
-  const color = COLORS[colorIndex];
+// ---- Skins ----
+// Cada skin define `colors` (índice 0 = null, 1-8 = piezas) y `drawBlock`.
+// El dispatcher `drawBlock` envuelve la llamada en save()/restore() para que
+// ningún skin deje globalAlpha/shadowBlur/shadowColor alterados.
+
+function drawBlockRetro(context, x, y, colorIndex, size, alpha) {
   context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
+  context.fillStyle = SKINS.retro.colors[colorIndex];
   context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
   // highlight
   context.fillStyle = 'rgba(255,255,255,0.12)';
   context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
   context.globalAlpha = 1;
+}
+
+function drawBlockNeon(context, x, y, colorIndex, size, alpha) {
+  const color = SKINS.neon.colors[colorIndex];
+  const px = x * size + 2, py = y * size + 2, s = size - 4;
+  context.globalAlpha = alpha ?? 1;
+  // cuerpo de color pleno con resplandor (shadowBlur + shadowColor)
+  context.shadowColor = color;
+  context.shadowBlur = 14;
+  context.fillStyle = color;
+  context.fillRect(px, py, s, s);
+  context.shadowBlur = 0;
+  context.shadowColor = 'transparent';
+  // núcleo más claro para dar sensación de luz
+  context.fillStyle = 'rgba(255,255,255,0.28)';
+  context.fillRect(px + 3, py + 3, s - 6, s - 6);
+  context.strokeStyle = '#ffffff';
+  context.globalAlpha = (alpha ?? 1) * 0.6;
+  context.lineWidth = 1;
+  context.strokeRect(px + 0.5, py + 0.5, s - 1, s - 1);
+  context.globalAlpha = 1;
+  context.shadowBlur = 0;
+}
+
+// Rectángulo redondeado con arcTo (sin depender de roundRect)
+function roundedRectPath(context, x, y, w, h, r) {
+  context.beginPath();
+  context.moveTo(x + r, y);
+  context.arcTo(x + w, y, x + w, y + h, r);
+  context.arcTo(x + w, y + h, x, y + h, r);
+  context.arcTo(x, y + h, x, y, r);
+  context.arcTo(x, y, x + w, y, r);
+  context.closePath();
+}
+
+function drawBlockPastel(context, x, y, colorIndex, size, alpha) {
+  const color = SKINS.pastel.colors[colorIndex];
+  const px = x * size + 2, py = y * size + 2, s = size - 4;
+  const r = Math.max(2, size * 0.28);
+  context.globalAlpha = alpha ?? 1;
+  roundedRectPath(context, px, py, s, s, r);
+  context.fillStyle = color;
+  context.fill();
+  // brillo suave arriba a la izquierda
+  roundedRectPath(context, px + 3, py + 3, s * 0.55, s * 0.28, Math.min(r * 0.5, s * 0.12));
+  context.fillStyle = 'rgba(255,255,255,0.35)';
+  context.fill();
+  // borde sutil
+  roundedRectPath(context, px, py, s, s, r);
+  context.strokeStyle = 'rgba(80,60,110,0.35)';
+  context.lineWidth = 1;
+  context.stroke();
+  context.globalAlpha = 1;
+}
+
+function drawBlockPixel(context, x, y, colorIndex, size, alpha) {
+  const color = SKINS.pixel.colors[colorIndex];
+  const px = x * size, py = y * size;
+  const cells = 6;                    // cuadrícula de 6x6 "píxeles" por bloque
+  const u = size / cells;
+  context.globalAlpha = alpha ?? 1;
+  context.fillStyle = color;
+  context.fillRect(px, py, size, size);
+  // textura de tablero de ajedrez en dos tonos
+  context.fillStyle = 'rgba(0,0,0,0.14)';
+  for (let r = 0; r < cells; r++)
+    for (let c = 0; c < cells; c++)
+      if ((r + c) % 2 === 0) context.fillRect(px + c * u, py + r * u, u, u);
+  // bisel claro arriba/izquierda
+  context.fillStyle = 'rgba(255,255,255,0.55)';
+  context.fillRect(px, py, size, u);
+  context.fillRect(px, py, u, size);
+  // bisel oscuro abajo/derecha
+  context.fillStyle = 'rgba(0,0,0,0.55)';
+  context.fillRect(px, py + size - u, size, u);
+  context.fillRect(px + size - u, py, u, size);
+  context.globalAlpha = 1;
+}
+
+const SKINS = {
+  retro: {
+    name: 'Retro',
+    colors: COLORS,
+    drawBlock: drawBlockRetro,
+  },
+  neon: {
+    name: 'Neón',
+    colors: [
+      null,
+      '#00e5ff', // I
+      '#ffea00', // O
+      '#d500f9', // T
+      '#00e676', // S
+      '#ff1744', // Z
+      '#2979ff', // J
+      '#ff9100', // L
+      '#b0bec5', // N
+    ],
+    drawBlock: drawBlockNeon,
+  },
+  pastel: {
+    name: 'Pastel',
+    colors: [
+      null,
+      '#8fd9e6', // I
+      '#ffe58f', // O
+      '#cc9fe8', // T
+      '#a3e3b2', // S
+      '#f4a3a9', // Z
+      '#a0c4f2', // J
+      '#f8c08a', // L
+      '#bdbdc8', // N
+    ],
+    drawBlock: drawBlockPastel,
+  },
+  pixel: {
+    name: 'Pixel art',
+    colors: [
+      null,
+      '#2bb3c0', // I
+      '#e6b800', // O
+      '#9c3fb5', // T
+      '#3f9b4a', // S
+      '#c62f2f', // Z
+      '#3a6fd1', // J
+      '#e07b12', // L
+      '#757575', // N
+    ],
+    drawBlock: drawBlockPixel,
+  },
+};
+
+const DEFAULT_SKIN = 'retro';
+let currentSkin = DEFAULT_SKIN;
+
+function drawBlock(context, x, y, colorIndex, size, alpha) {
+  if (!colorIndex) return;
+  context.save();
+  SKINS[currentSkin].drawBlock(context, x, y, colorIndex, size, alpha);
+  context.restore();
+}
+
+function applySkin(id) {
+  currentSkin = Object.prototype.hasOwnProperty.call(SKINS, id) ? id : DEFAULT_SKIN;
+  for (const key of Object.keys(SKINS)) document.body.classList.remove('skin-' + key);
+  document.body.classList.add('skin-' + currentSkin);
+  // Redibuja de inmediato (también en pausa o game over); seguro si aún no hay estado
+  if (board && current) draw();
+  if (next) drawNext();
 }
 
 function drawGrid() {
@@ -638,6 +790,32 @@ controlsBtn.addEventListener('click', () => {
 
 document.addEventListener('keyup', e => freshKeys.delete(e.code));
 window.addEventListener('blur', () => freshKeys.clear());
+
+// ---- Skins: selector y persistencia ----
+const skinSelect = document.getElementById('skin-select');
+
+for (const [id, skin] of Object.entries(SKINS)) {
+  const opt = document.createElement('option');
+  opt.value = id;
+  opt.textContent = skin.name;
+  skinSelect.appendChild(opt);
+}
+
+let savedSkin = DEFAULT_SKIN;
+try { savedSkin = localStorage.getItem('tetris-skin') || DEFAULT_SKIN; } catch (e) {}
+applySkin(savedSkin);
+skinSelect.value = currentSkin;
+
+// Escape/Enter sueltan el foco para que las teclas de juego vuelvan a funcionar
+skinSelect.addEventListener('keydown', e => {
+  if (e.code === 'Escape' || e.code === 'Enter') skinSelect.blur();
+});
+
+skinSelect.addEventListener('change', () => {
+  applySkin(skinSelect.value);
+  try { localStorage.setItem('tetris-skin', currentSkin); } catch (e) {}
+  skinSelect.blur();
+});
 
 // El juego espera al botón Jugar: se prepara un primer cuadro detrás de la pantalla de inicio.
 init();
