@@ -177,7 +177,7 @@ function drawBlockNeon(context, x, y, colorIndex, size, alpha) {
   const color = SKINS.neon.colors[colorIndex];
   const px = x * size + 2, py = y * size + 2, s = size - 4;
   context.globalAlpha = alpha ?? 1;
-  // cuerpo oscuro con contorno brillante y resplandor
+  // cuerpo de color pleno con resplandor (shadowBlur + shadowColor)
   context.shadowColor = color;
   context.shadowBlur = 14;
   context.fillStyle = color;
@@ -215,12 +215,12 @@ function drawBlockPastel(context, x, y, colorIndex, size, alpha) {
   context.fillStyle = color;
   context.fill();
   // brillo suave arriba a la izquierda
-  roundedRectPath(context, px + 3, py + 3, s * 0.55, s * 0.28, r * 0.5);
+  roundedRectPath(context, px + 3, py + 3, s * 0.55, s * 0.28, Math.min(r * 0.5, s * 0.12));
   context.fillStyle = 'rgba(255,255,255,0.35)';
   context.fill();
   // borde sutil
   roundedRectPath(context, px, py, s, s, r);
-  context.strokeStyle = 'rgba(255,255,255,0.5)';
+  context.strokeStyle = 'rgba(80,60,110,0.35)';
   context.lineWidth = 1;
   context.stroke();
   context.globalAlpha = 1;
@@ -275,14 +275,14 @@ const SKINS = {
     name: 'Pastel',
     colors: [
       null,
-      '#a8e6ef', // I
-      '#fff1b8', // O
-      '#d9b8f0', // T
-      '#b8ecc4', // S
-      '#f7b9bd', // Z
-      '#b9d4f5', // J
-      '#fbd3a6', // L
-      '#d3d3d9', // N
+      '#8fd9e6', // I
+      '#ffe58f', // O
+      '#cc9fe8', // T
+      '#a3e3b2', // S
+      '#f4a3a9', // Z
+      '#a0c4f2', // J
+      '#f8c08a', // L
+      '#bdbdc8', // N
     ],
     drawBlock: drawBlockPastel,
   },
@@ -430,7 +430,7 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.target && /^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (e.target && /^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName) && e.code !== 'KeyP') return;
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
@@ -496,6 +496,11 @@ let savedSkin = DEFAULT_SKIN;
 try { savedSkin = localStorage.getItem('tetris-skin') || DEFAULT_SKIN; } catch (e) {}
 applySkin(savedSkin);
 skinSelect.value = currentSkin;
+
+// Escape/Enter sueltan el foco para que las teclas de juego vuelvan a funcionar
+skinSelect.addEventListener('keydown', e => {
+  if (e.code === 'Escape' || e.code === 'Enter') skinSelect.blur();
+});
 
 skinSelect.addEventListener('change', () => {
   applySkin(skinSelect.value);
