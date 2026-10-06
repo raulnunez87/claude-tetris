@@ -108,8 +108,8 @@ function clearLines() {
   if (cleared) {
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
-    level = Math.floor(lines / 10) + 1;
-    dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    level = baseLevel + Math.floor(lines / 10);
+    dropInterval = speedFor(level);
     updateHUD();
   }
 }
@@ -228,20 +228,6 @@ function endGame() {
   overlay.classList.remove('hidden');
 }
 
-function togglePause() {
-  if (gameOver) return;
-  paused = !paused;
-  if (!paused) {
-    lastTime = performance.now();
-    loop(lastTime);
-  } else {
-    cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
-  }
-}
-
 function loop(ts) {
   const dt = ts - lastTime;
   lastTime = ts;
@@ -263,23 +249,36 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  baseLevel = startLevel; // fija el nivel de esta partida
+  level = baseLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  dropInterval = speedFor(level);
   dropAccum = 0;
   lastTime = performance.now();
   next = randomPiece();
   spawn();
   updateHUD();
   overlay.classList.add('hidden');
+  closePauseMenu();
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
-  if (paused || gameOver) return;
+  const t = e.target;
+  const inField = t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA');
+  if (e.code === 'KeyP' || e.code === 'Escape') {
+    // Con un campo enfocado solo se atiende P/Esc si es el menú de pausa;
+    // en el <select> la P se deja para la búsqueda por letra.
+    if (inField && (!pauseMenu.contains(t) || (t.tagName === 'SELECT' && e.code === 'KeyP'))) return;
+    if (gameOver) return;
+    e.preventDefault();
+    if (!e.repeat) togglePause();
+    return;
+  }
+  if (inField) return;
+  if (paused || gameOver || isInputBlocked(e)) return;
   switch (e.code) {
     case 'ArrowLeft':
       if (!collide(current.shape, current.x - 1, current.y)) current.x--;
@@ -320,13 +319,115 @@ function applyTheme(isLight) {
   }
 }
 
-const savedTheme = localStorage.getItem('tetris-theme');
+let savedTheme = null;
+try { savedTheme = localStorage.getItem('tetris-theme'); } catch (err) { /* almacenamiento no disponible */ }
 applyTheme(savedTheme === 'light');
 
 themeToggle.addEventListener('click', () => {
   const isLight = !document.body.classList.contains('light-mode');
   applyTheme(isLight);
-  localStorage.setItem('tetris-theme', isLight ? 'light' : 'dark');
+  try { localStorage.setItem('tetris-theme', isLight ? 'light' : 'dark'); } catch (err) { /* almacenamiento no disponible */ }
 });
+
+// ---- Menú de pausa ----
+const START_LEVEL_KEY = 'tetris-start-level';
+const MIN_START_LEVEL = 1;
+const MAX_START_LEVEL = 10;
+const RESUME_INPUT_DELAY = 150; // ms sin aceptar teclas del juego tras reanudar
+
+const pauseMenu = document.getElementById('pause-menu');
+const resumeBtn = document.getElementById('resume-btn');
+const pauseRestartBtn = document.getElementById('pause-restart-btn');
+const controlsBtn = document.getElementById('controls-btn');
+const pauseControls = document.getElementById('pause-controls');
+const startLevelSelect = document.getElementById('start-level');
+
+let startLevel = loadStartLevel(); // ajuste elegido en el menú (próxima partida)
+let baseLevel = startLevel;        // nivel con el que empezó la partida en curso
+let inputBlockedUntil = 0;
+const freshKeys = new Set(); // teclas pulsadas (no repetidas) desde la última reanudación
+
+function speedFor(lvl) {
+  return Math.max(100, 1000 - (lvl - 1) * 90);
+}
+
+function clampStartLevel(n) {
+  n = parseInt(n, 10);
+  if (!Number.isFinite(n)) return MIN_START_LEVEL;
+  return Math.min(MAX_START_LEVEL, Math.max(MIN_START_LEVEL, n));
+}
+
+function loadStartLevel() {
+  try {
+    return clampStartLevel(localStorage.getItem(START_LEVEL_KEY));
+  } catch (err) {
+    return MIN_START_LEVEL;
+  }
+}
+
+function saveStartLevel(n) {
+  try {
+    localStorage.setItem(START_LEVEL_KEY, String(n));
+  } catch (err) { /* almacenamiento no disponible */ }
+}
+
+// Ignora teclas del juego justo tras reanudar y repeticiones de teclas
+// que ya estaban mantenidas al reanudar (hasta soltarlas y volver a pulsar).
+function isInputBlocked(e) {
+  const inWindow = performance.now() < inputBlockedUntil;
+  if (e.repeat) return inWindow || !freshKeys.has(e.code);
+  freshKeys.add(e.code); // pulsación nueva: sus repeticiones sí valdrán
+  return inWindow;
+}
+
+function openPauseMenu() {
+  pauseMenu.classList.remove('hidden');
+  resumeBtn.focus();
+}
+
+function closePauseMenu() {
+  pauseMenu.classList.add('hidden');
+  pauseControls.classList.add('hidden');
+  controlsBtn.setAttribute('aria-expanded', 'false');
+  if (pauseMenu.contains(document.activeElement)) document.activeElement.blur();
+  inputBlockedUntil = performance.now() + RESUME_INPUT_DELAY;
+  freshKeys.clear();
+}
+
+function togglePause() {
+  if (gameOver) return;
+  paused = !paused;
+  if (!paused) {
+    closePauseMenu();
+    lastTime = performance.now();
+    loop(lastTime);
+  } else {
+    cancelAnimationFrame(animId);
+    openPauseMenu();
+  }
+}
+
+for (let n = MIN_START_LEVEL; n <= MAX_START_LEVEL; n++) {
+  const opt = document.createElement('option');
+  opt.value = String(n);
+  opt.textContent = String(n);
+  startLevelSelect.appendChild(opt);
+}
+startLevelSelect.value = String(startLevel);
+
+startLevelSelect.addEventListener('change', () => {
+  startLevel = clampStartLevel(startLevelSelect.value);
+  saveStartLevel(startLevel);
+});
+
+resumeBtn.addEventListener('click', togglePause);
+pauseRestartBtn.addEventListener('click', init);
+controlsBtn.addEventListener('click', () => {
+  const open = pauseControls.classList.toggle('hidden') === false;
+  controlsBtn.setAttribute('aria-expanded', String(open));
+});
+
+document.addEventListener('keyup', e => freshKeys.delete(e.code));
+window.addEventListener('blur', () => freshKeys.clear());
 
 init();
